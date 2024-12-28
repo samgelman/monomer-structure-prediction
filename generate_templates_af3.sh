@@ -8,7 +8,7 @@ if [ -e "hmm_output.sto" ]; then
     exit 0
 fi
 
-envDir="/global/homes/v/vss2134/miniforge3/envs/of2"
+envDir="/p/vast1/OpenFoldCollab/openfold-data/miniforge3/envs/amdof_relaxhip"
 binDir="$envDir/bin"
 ## guarantee that that the query sequence is in the alignment
 ### generate the query sequence
@@ -23,7 +23,7 @@ $binDir/jackhmmer  -o /dev/null -A concat_cfdb_uniref100_filtered.sto --noali -N
 rm -f seqs_unaligned.fasta
 ## build inital hmm output
 $binDir/hmmbuild --hand  --amino output.hmm concat_cfdb_uniref100_filtered.sto > /dev/null 2>&1
-$binDir/hmmsearch --cpu 4 --noali --F1 0.1 --F2 0.1 --F3 0.1 -E 100 --incE 100 --domE 100 --incdomE 100 -A hmm_output_no_query.sto output.hmm /pscratch/sd/v/vss2134/pdb_seqres.txt > /dev/null 2>&1
+$binDir/hmmsearch --cpu 4 --noali --F1 0.1 --F2 0.1 --F3 0.1 -E 100 --incE 100 --domE 100 --incdomE 100 -A hmm_output_no_query.sto output.hmm /p/vast1/OpenFoldCollab/openfold-data/pdb_seqres.txt > /dev/null 2>&1
 
 if [ ! -s "hmm_output_no_query.sto" ]; then
     echo "no hits found"
