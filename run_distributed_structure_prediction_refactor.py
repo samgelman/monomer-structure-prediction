@@ -12,8 +12,9 @@ import os
 import sqlite3
 import string 
 import sys
+from datetime import datetime
 
-AF2_BIN_DIR="/p/vast1/OpenFoldCollab/openfold-data/miniforge3/envs/amdof_relaxhip"
+AF2_BIN_DIR="/p/lustre5/swamy2/amdof_relaxhip"
 
 SP_OUTPUT = None
 NGPUS=4
@@ -241,7 +242,7 @@ def sync_folder_to_s3(local_folder, bucket_name, s3_folder, s3_client):
             s3_path = os.path.join(s3_folder, relative_path).replace("\\", "/")  # Replace backslashes for S3 compatibility
             
             # Upload file to S3
-            print(f"Uploading {local_path} to s3://{bucket_name}/{s3_path}")
+            #print(f"Uploading {local_path} to s3://{bucket_name}/{s3_path}")
             s3_client.upload_file(local_path, bucket_name, s3_path)
 
 
@@ -314,7 +315,6 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
                 --config_preset=model_1_ptm \
                 --use_precomputed_alignments=/tmp/alignments \
                 --jax_param_path=/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_1_ptm.npz,/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_2_ptm.npz \
-                --skip_relaxation \
                 --max_template_date "2021-09-30" \
                 --output_dir /tmp/
                 ''', log_handle, failure_file, "structure_pred_with_templates")
@@ -327,7 +327,6 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
             --config_preset=model_3_ptm \
             --use_precomputed_alignments=/tmp/alignments \
             --jax_param_path=/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_3_ptm.npz,/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_4_ptm.npz,/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_5_ptm.npz \
-            --skip_relaxation \
             --max_template_date "2021-09-30" \
             --output_dir /tmp/
             ''', log_handle, failure_file, "structure_pred_no_templates")
@@ -335,7 +334,13 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
     inference_time = end - start
     ## hmmsearch templates
     start = time.time()
-    sp_run(f"bash generate_templates_af3.sh /tmp/alignments/{mgy_id}/", log_handle, failure_file, "generate_templates_af3")
+    sp_run(f"bash generate_templates_af3.sh /tmp/alignments/{mgy_id}/ {AF2_BIN_DIR} ", log_handle, failure_file, "generate_templates_af3")
+    if not Path(f"/tmp/alignments/{mgy_id}/hmm_output.sto").exists():
+        with open(failure_file, "w+") as ofl:
+            ofl.write("generate_templates_af3\n")
+        return 
+
+
     end = time.time()
     hmmsearch_template_time = end - start
     ### select best model and upload to s3
@@ -359,13 +364,13 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
     all_pred_scores.to_csv(f"/tmp/alignments/{mgy_id}/all_pred_metric.csv", index = False)
     best_model = all_pred_scores.sort_values("mean_plddt").tail(1).src_file.iloc[0]
     sp_run(f"mkdir /tmp/alignments/{mgy_id}/extra_structures")
-    sp_run(f"cp {best_model.replace('structure_metrics.csv', 'unrelaxed.pdb')} /tmp/alignments/{mgy_id}/best_structure_unrelaxed.pdb")
-    sp_run(f"cp {best_model.replace('structure_metrics.csv', 'unrelaxed_protein.pkl')} /tmp/alignments/{mgy_id}/best_structure_unrelaxed_protein.pkl")
+    sp_run(f"cp {best_model.replace('structure_metrics.csv', 'relaxed.pdb')} /tmp/alignments/{mgy_id}/best_structure_relaxed.pdb")
+    
 
     sp_run(f"mkdir -p /tmp/alignments/{mgy_id}/extra_structures/")
     for file in pred_score_files:
         params = file.split("/")[3]
-        sp_run(f"cp {file.replace('structure_metrics.csv', 'unrelaxed.pdb')} /tmp/alignments/{mgy_id}/extra_structures/{params}_unrelaxed.pdb")
+        sp_run(f"cp {file.replace('structure_metrics.csv', 'relaxed.pdb')} /tmp/alignments/{mgy_id}/extra_structures/{params}_relaxed.pdb")
     try:
         sync_folder_to_s3(f"/tmp/alignments/{mgy_id}", "rcp-openfold-dataset-prd-361769554172", f"monomer_distill_clean_data_prod/{mgy_id}", s3_client)
     except:
@@ -384,6 +389,9 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
 
 
 def main():
+    now = datetime.now()
+    formatted_now = now.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"__SCRIPT_STARTED_AT_{formatted_now}__")
     session = boto3.Session(profile_name="openfold")
     mem_limit_df = pd.DataFrame().assign(
         lbin = [2,3,4,5,6,7,8,10],

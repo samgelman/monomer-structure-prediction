@@ -8,7 +8,7 @@ if [ -e "hmm_output.sto" ]; then
     exit 0
 fi
 
-envDir="/p/vast1/OpenFoldCollab/openfold-data/miniforge3/envs/amdof_relaxhip"
+envDir="$2"
 binDir="$envDir/bin"
 ## guarantee that that the query sequence is in the alignment
 ### generate the query sequence
