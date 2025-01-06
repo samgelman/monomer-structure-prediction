@@ -4,9 +4,10 @@ import pandas as pd
 import numpy as np 
 from pathlib import Path
 from dataclasses import dataclass
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import Future
 import boto3 
+from botocore.config import Config
 import glob 
 import os 
 import sqlite3
@@ -19,6 +20,15 @@ AF2_BIN_DIR="/p/lustre5/swamy2/amdof_relaxhip"
 SP_OUTPUT = None
 NGPUS=4
 GPU_VRAM_GB=96
+
+_worker_client = None
+
+def _init_worker():
+    global _worker_client
+    session = boto3.Session(profile_name="openfold")
+    _worker_client = session.client("s3", config=Config(
+            retries={"max_attempts": 10, "mode": "adaptive"}
+            ))
 
 
 # code for parsing MSAs
@@ -246,12 +256,12 @@ def sync_folder_to_s3(local_folder, bucket_name, s3_folder, s3_client):
             s3_client.upload_file(local_path, bucket_name, s3_path)
 
 
-def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, device_id, checkfile, session):
-
+def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, device_id, checkfile):
+    global _worker_client
+    s3_client = _worker_client
     sp_run(f"mkdir -p mgy_structure_pred_logs mgy_structure_pred_failures")
     log_handle = open(f"mgy_structure_pred_logs/{mgy_id}.log", "w+")
     failure_file = f"mgy_structure_pred_failures/{mgy_id}.log"
-    s3_client = session.client("s3")
     if Path(checkfile).exists():
         log_handle.write(f"Skipping {mgy_id} as checkfile exists\n")
         log_handle.close()
@@ -392,7 +402,6 @@ def main():
     now = datetime.now()
     formatted_now = now.strftime("%Y-%m-%d %H:%M:%S")
     print(f"__SCRIPT_STARTED_AT_{formatted_now}__")
-    session = boto3.Session(profile_name="openfold")
     mem_limit_df = pd.DataFrame().assign(
         lbin = [2,3,4,5,6,7,8,10],
         mem_gb = [16, 20, 25, 32, 40, 50, 64, 80]
@@ -403,7 +412,9 @@ def main():
     ).merge(mem_limit_df).rename(columns = {"seqid": "mgy_id", "jackhmmer_msa_path": "jackhmmer_s3_path", "hhblits_msa_path": "hhblits_s3_path"})
     Path("mgy_structure_pred_timing/").mkdir(exist_ok=True)
     gpu_manager = GPUQueueManager(NGPUS, GPU_VRAM_GB)
-    with ThreadPoolExecutor(max_workers=64) as executor: ## on a NERSC node at max we should have 24 possible concurrent jobs
+    with ProcessPoolExecutor(max_workers=64, 
+                             initializer=_init_worker,
+                             ) as executor: ## on a NERSC node at max we should have 24 possible concurrent jobs
         for _, row in df.iterrows():
             mgy_id = row["mgy_id"]
             jackhmmer_s3_path = row["jackhmmer_s3_path"]
@@ -417,7 +428,7 @@ def main():
                 if gpu_id is not None:
                     print(f"Starting {mgy_id} on GPU {gpu_id} allocating {mem_gb} GB")
                     #structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, gpu_id, checkfile, session)
-                    sp_process = executor.submit(structure_prediction_pipeline, mgy_id, jackhmmer_s3_path, hhblits_s3_path, gpu_id, checkfile, session)
+                    sp_process = executor.submit(structure_prediction_pipeline, mgy_id, jackhmmer_s3_path, hhblits_s3_path, gpu_id, checkfile)
                     gpu_manager.add_job(Job(gpu_id, sp_process, mem_gb))
                     pending = False
 
