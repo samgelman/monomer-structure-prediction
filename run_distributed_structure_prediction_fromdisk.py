@@ -351,8 +351,8 @@ def main():
     formatted_now = now.strftime("%Y-%m-%d %H:%M:%S")
     print(f"__SCRIPT_STARTED_AT_{formatted_now}__")
     mem_limit_df = pd.DataFrame().assign(
-        lbin = [2,3,4,5,6,7,8,9],
-        mem_gb = [16, 20, 25, 32, 40, 50, 64, 80]
+        lbin = [0,1,2,3,4,5,6,7,8,9],
+        mem_gb = [10, 12,16, 20, 25, 32, 40, 50, 64, 80]
     )
     df = pd.read_csv(sys.argv[1], names = ["seqid","hhblits_msa_path","jackhmmer_msa_path","seqlen"]).assign(
         lbin = lambda x: (x.seqlen // 100).astype(int), 

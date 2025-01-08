@@ -382,7 +382,7 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
         params = file.split("/")[3]
         sp_run(f"cp {file.replace('structure_metrics.csv', 'relaxed.pdb')} /tmp/alignments/{mgy_id}/extra_structures/{params}_relaxed.pdb")
     try:
-        sync_folder_to_s3(f"/tmp/alignments/{mgy_id}", "rcp-openfold-dataset-prd-361769554172", f"monomer_distill_clean_data_prod/{mgy_id}", s3_client)
+        sync_folder_to_s3(f"/tmp/alignments/{mgy_id}", "rcp-openfold-dataset-prd-361769554172", f"short_monomer_distill_clean_data_prod/{mgy_id}", s3_client)
     except:
         with open(failure_file, "w+") as ofl:
             ofl.write("s3_upload\n")
@@ -403,8 +403,8 @@ def main():
     formatted_now = now.strftime("%Y-%m-%d %H:%M:%S")
     print(f"__SCRIPT_STARTED_AT_{formatted_now}__")
     mem_limit_df = pd.DataFrame().assign(
-        lbin = [2,3,4,5,6,7,8,10],
-        mem_gb = [16, 20, 25, 32, 40, 50, 64, 80]
+        lbin = [0,1,2,3,4,5,6,7,8,10],
+        mem_gb = [10,12,16, 20, 25, 32, 40, 50, 64, 80]
     )
     df = pd.read_csv(sys.argv[1], names = ["seqid","hhblits_msa_path","jackhmmer_msa_path","seqlen"]).assign(
         lbin = lambda x: (x.seqlen // 100).astype(int), 
