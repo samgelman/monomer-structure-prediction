@@ -1,27 +1,34 @@
 #%%
 import boto3
 import pandas as pd
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from multiprocessing import Pool
 from botocore.exceptions import ClientError
-import os
+from pathlib import Path
 from botocore.config import Config
 from tqdm import tqdm
 from pathlib import Path 
 import sys 
 import time 
 # Initialize S3 client
-session = boto3.Session(profile_name="openfold")
-#retries={'max_attempts': 10, 'mode': 'adaptive'},
-s3_client = session.client("s3", config=Config(max_pool_connections=72))
+_worker_client = None  
+
+def _init_worker():
+    global _worker_client
+    session = boto3.Session(profile_name="openfold")
+    #retries={'max_attempts': 10, 'mode': 'adaptive'},
+    _worker_client = session.client("s3", config=Config(retries={"max_attempts": 5, "mode": "adaptive"}))
+
+
 BASE_OUTDIR="/p/vast1/OpenFoldCollab/openfold-data/monomer-structure-prediction/monomer_msas_for_prediction"
 def download_file(s3_path, local_file):
     """Download a single file from S3."""
+    global _worker_client
     try:
         if Path(local_file).exists():
             return
         bucket = s3_path.split("/")[2]
         key = "/".join( s3_path.split("/")[3:])
-        s3_client.download_file(bucket, key, local_file)
+        _worker_client.download_file(bucket, key, local_file)
         return
     except ClientError as e:
         return f"Failed: {s3_path} with error {e}"
@@ -52,14 +59,16 @@ def main(df, max_workers=70):
     rows = [i[1] for i in df.iterrows()]
     # Download files in parallel
     results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_s3_path = [executor.submit(download_row, row) for row in tqdm(rows, desc="Submitting")]
-        for future in tqdm(as_completed(future_to_s3_path), total=len(rows), desc="Downloading"):
-            results.append(future.result())
+    with Pool(
+        processes=max_workers, 
+        initializer=_init_worker
+    ) as pool:
+        for _ in tqdm(pool.imap_unordered(download_row, rows), total = len(rows)):
+            pass
 #%% 
 if __name__ == "__main__":
     all_long_seq = pd.read_csv(sys.argv[1], names = ["mgy_id","hhblits_s3_path","jackhmmer_s3_path","seqlen"])
-    main(all_long_seq)
+    main(all_long_seq, max_workers = int(sys.argv[2]))
     
 
 
