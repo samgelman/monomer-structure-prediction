@@ -306,11 +306,8 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
     ### select best model and upload to s3
     pred_score_files = glob.glob(f"/tmp/predictions/*/{mgy_id}*structure_metrics.csv")
     pred_score_files = [
-        f"/tmp/predictions/params_model_1_ptm/{mgy_id}_model_1_ptm_structure_metrics.csv",
-        f"/tmp/predictions/params_model_2_ptm/{mgy_id}_model_1_ptm_structure_metrics.csv",
-        f"/tmp/predictions/params_model_3_ptm/{mgy_id}_model_3_ptm_structure_metrics.csv",
-        f"/tmp/predictions/params_model_4_ptm/{mgy_id}_model_3_ptm_structure_metrics.csv",
-        f"/tmp/predictions/params_model_5_ptm/{mgy_id}_model_3_ptm_structure_metrics.csv",
+        f"/tmp/predictions/{mgy_id}_model_1_ptm_structure_metrics.csv",
+        f"/tmp/predictions/{mgy_id}_model_3_ptm_structure_metrics.csv",
     ]
     for f in pred_score_files:
         assert Path(f).exists(), f"{f} does not exist"
