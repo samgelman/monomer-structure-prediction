@@ -274,7 +274,7 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
                 --model_device=cuda:{device_id} \
                 --config_preset=model_1_ptm \
                 --use_precomputed_alignments=/tmp/alignments \
-                --jax_param_path=/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_1_ptm.npz,/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_2_ptm.npz \
+                --jax_param_path=/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_1_ptm.npz \
                 --max_template_date "2021-09-30" \
                 --output_dir /tmp/
                 ''', log_handle, failure_file, "structure_pred_with_templates")
@@ -286,7 +286,7 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
             --model_device=cuda:{device_id} \
             --config_preset=model_3_ptm \
             --use_precomputed_alignments=/tmp/alignments \
-            --jax_param_path=/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_3_ptm.npz,/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_4_ptm.npz,/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_5_ptm.npz \
+            --jax_param_path=/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_3_ptm.npz \
             --max_template_date "2021-09-30" \
             --output_dir /tmp/
             ''', log_handle, failure_file, "structure_pred_no_templates")
