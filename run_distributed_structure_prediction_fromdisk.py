@@ -252,7 +252,7 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
     start = time.time()
     sp_run(f"{AF2_BIN_DIR}/bin/mmseqs filtera3m /tmp/alignments/{mgy_id}/concat_cfdb_uniref100.a3m /tmp/alignments/{mgy_id}/concat_cfdb_uniref100_filtered.a3m --qid 0.0,0.2,0.4,0.6,0.8,1.0 --filter-min-enable 16000 --diff 3000 --qsc 0 --max-seq-id 0.95", log_handle, failure_file, "mmseqs_filter")
     ## remove bc openfold inference script autoloads everyting in the alignment folder 
-    #sp_run(f" rm /tmp/alignments/{mgy_id}/uniref100_hits.a3m /tmp/alignments/{mgy_id}/cfdb_uniref30_hits.a3m /tmp/alignments/{mgy_id}/concat_cfdb_uniref100.a3m")
+    sp_run(f" rm  /tmp/alignments/{mgy_id}/concat_cfdb_uniref100.a3m")
     end = time.time()
     filter_time = end - start
     
