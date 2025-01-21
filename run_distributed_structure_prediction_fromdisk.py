@@ -15,8 +15,8 @@ import sys
 from datetime import datetime
 
 AF2_BIN_DIR="/p/lustre5/swamy2/amdof_relaxhip"
-BASE_MSA_DIR="/p/vast1/OpenFoldCollab/openfold-data/monomer-structure-prediction/monomer_msas_for_prediction"
-OUTPUT_DIR="/p/vast1/OpenFoldCollab/openfold-data/monomer-structure-prediction/monomer_predicted_structures"
+BASE_MSA_DIR="/p/lustre5/swamy2/openfold-data/short_monomer_msas_for_prediction"
+OUTPUT_DIR="/p/vast1/OpenFoldCollab/openfold-data/monomer-structure-prediction/short_monomer_predicted_structures"
 
 SP_OUTPUT = None
 NGPUS=4
@@ -267,17 +267,20 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
     ### predict structures
     start = time.time()
     ## models seeds with templates
-    sp_run(f'''{AF2_BIN_DIR}/bin/python \
-                run_pretrained_openfold.py \
-                /tmp/fa/{mgy_id}/ \
-                /p/vast1/OpenFoldCollab/openfold-data/pdb_mmcif/mmcif_files/ \
-                --model_device=cuda:{device_id} \
-                --config_preset=model_1_ptm \
-                --use_precomputed_alignments=/tmp/alignments \
-                --jax_param_path=/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_1_ptm.npz \
-                --max_template_date "2021-09-30" \
-                --output_dir /tmp/
-                ''', log_handle, failure_file, "structure_pred_with_templates")
+    try:
+        sp_run(f'''{AF2_BIN_DIR}/bin/python \
+                    run_pretrained_openfold.py \
+                    /tmp/fa/{mgy_id}/ \
+                    /p/vast1/OpenFoldCollab/openfold-data/pdb_mmcif/mmcif_files/ \
+                    --model_device=cuda:{device_id} \
+                    --config_preset=model_1_ptm \
+                    --use_precomputed_alignments=/tmp/alignments \
+                    --jax_param_path=/p/vast1/OpenFoldCollab/openfold-amd/openfold/resources/params_model_1_ptm.npz \
+                    --max_template_date "2021-09-30" \
+                    --output_dir /tmp/
+                    ''', log_handle, failure_file, "structure_pred_with_templates")
+    except:
+        pass
     ## model seeds with out templates 
     sp_run(f'''{AF2_BIN_DIR}/bin/python \
             run_pretrained_openfold.py \
