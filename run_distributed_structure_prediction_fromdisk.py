@@ -15,8 +15,8 @@ import sys
 from datetime import datetime
 
 AF2_BIN_DIR="/p/lustre5/swamy2/amdof_relaxhip"
-BASE_MSA_DIR="/p/lustre5/swamy2/openfold-data/short_monomer_msas_for_prediction"
-OUTPUT_DIR="/p/vast1/OpenFoldCollab/openfold-data/monomer-structure-prediction/short_monomer_predicted_structures"
+BASE_MSA_DIR="/p/vast1/OpenFoldCollab/openfold-data/monomer-structure-prediction/base_msa_dir"
+OUTPUT_DIR="/p/vast1/OpenFoldCollab/openfold-data/monomer-structure-prediction/test_tmpl_fix/"
 
 SP_OUTPUT = None
 NGPUS=4
@@ -280,7 +280,8 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
                     --output_dir /tmp/
                     ''', log_handle, failure_file, "structure_pred_with_templates")
     except:
-        pass
+        print("Templates are likely missing from /p/vast1/OpenFoldCollab/openfold-data/pdb_mmcif/mmcif_files/; will proceed with deleting hhsearch_output.hhr")
+        sp_run(f"rm /tmp/alignments/{mgy_id}/hhsearch_output.hhr", log_handle, failure_file, "rm_hhsearch")
     ## model seeds with out templates 
     sp_run(f'''{AF2_BIN_DIR}/bin/python \
             run_pretrained_openfold.py \
@@ -307,20 +308,23 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
     end = time.time()
     hmmsearch_template_time = end - start
     ### select best model and upload to s3
-    pred_score_files = glob.glob(f"/tmp/predictions/*/{mgy_id}*structure_metrics.csv")
+    
     pred_score_files = [
         f"/tmp/predictions/{mgy_id}_model_1_ptm_structure_metrics.csv",
         f"/tmp/predictions/{mgy_id}_model_3_ptm_structure_metrics.csv",
     ]
+    pred_score_files_avail = []
     for f in pred_score_files:
-        assert Path(f).exists(), f"{f} does not exist"
-    #pred_score_files = glob.glob("/global/homes/v/vss2134/openfold3/testing/example_predictions/*structure_metrics.csv")
+        if Path(f).exists():
+            pred_score_files_avail.append(f)
+    assert len(pred_score_files_avail) > 0, "At least one prediction file must be available"
+    
     all_pred_scores = pd.concat([
         pd.read_csv(f, names = ["mgy_id", "mean_plddt", "ptm"]).assign(
             src_file = f,
             model_id = f.split("/")[-1].split("_")[2]
         )
-        for f in pred_score_files])
+        for f in pred_score_files_avail])
     all_pred_scores.to_csv(f"/tmp/alignments/{mgy_id}/all_pred_metric.csv", index = False)
     best_model = all_pred_scores.sort_values("mean_plddt").tail(1).src_file.iloc[0]
     sp_run(f"mkdir /tmp/alignments/{mgy_id}/extra_structures")
@@ -328,7 +332,7 @@ def structure_prediction_pipeline(mgy_id, jackhmmer_s3_path, hhblits_s3_path, de
     
 
     sp_run(f"mkdir -p /tmp/alignments/{mgy_id}/extra_structures/")
-    for file in pred_score_files:
+    for file in pred_score_files_avail:
         params = file.split("/")[3]
         sp_run(f"cp {file.replace('structure_metrics.csv', 'relaxed.pdb')} /tmp/alignments/{mgy_id}/extra_structures/{params}_relaxed.pdb")
     ## sync to outdir
