@@ -1,0 +1,37 @@
+container_image = docker://agitter/openfold:a1192c8-2025-01-20
+universe = container
+
+executable = run.sh
+
+# Include other files that need to be transferred here.
+# https://htcondor.readthedocs.io/en/latest/man-pages/condor_submit.html#transfer_input_files
+transfer_input_files = run.sh
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+preserve_relative_paths = true
+
+log = run_output/condor_logs/job_$(Cluster)_$(Process).log
+error = run_output/condor_logs/job_$(Cluster)_$(Process).err
+output = run_output/condor_logs/job_$(Cluster)_$(Process).out
+
+requirements = (HasCHTCStaging == true)
+
+request_gpus = 1
+request_cpus = 2
+request_memory = 16GB
+request_disk = 200GB
+
+# https://htcondor.readthedocs.io/en/latest/man-pages/condor_submit.html#gpus_minimum_runtime
+gpus_minimum_runtime = 11.0
+gpus_minimum_memory = 20GB
+# https://en.wikipedia.org/wiki/CUDA#GPUs_supported
+gpus_maximum_capability = 8.9
+
++WantGPULab = true
++GPUJobLength = "short"
+
+# Use environment variables to control the indices of the settings files to provide as input
+environment = "CLUSTER=$(Cluster) PROCESS=$(Process)"
+
+queue 1
